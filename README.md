@@ -10,7 +10,7 @@ the development of new REST micro service(s) in Python 3 runtime.
   
 Currently, following facilities and sample usages are provided off-the-shelf:  
 * Fastapi application and middleware setup  
-* Two sample miro services with following features
+* Two sample micro services with following features
   * FastApi applications with middleware injection including
       * Dababase session management
       * Exception handler

@@ -1,6 +1,6 @@
 # py-rest-service-template
 A Python REST micro-service project template that helps developers quickly generate 
-production grade Python REST web applicationS using FastApi, Pydantic, Postgres, 
+production grade Python REST web applications using FastApi, Pydantic, Postgres, 
 SQLAlchemy, Pytest, Poetry, Docker Compose, and more!
 
 ## Introduction  

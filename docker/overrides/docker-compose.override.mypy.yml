@@ -1,0 +1,9 @@
+version: '3.9'
+services:
+  api:
+    command: [
+      "mypy",
+      "app",
+      "--ignore-missing-imports",
+      "--disallow-untyped-def",
+    ]

@@ -1,0 +1,190 @@
+steps:
+
+# Send a Slack notification.
+- name: 'gcr.io/acuit-dev/slackbot'
+  id: slack-notification
+  args: [
+    '--build',
+    '$BUILD_ID',
+    '--webhook',
+    '$_SLACK_WEBHOOK'
+  ]
+  
+  
+# Create file for version endpoint
+- name: 'gcr.io/cloud-builders/git'
+  id: create_version_file
+  entrypoint: /bin/bash
+  args:
+  - '-c'
+  - |
+    echo '{' > app/services/default/resources/version.txt
+    echo '  "REPO_NAME": "'${REPO_NAME}'",' >> app/services/default/resources/version.txt
+    echo '  "BRANCH_NAME": "'${BRANCH_NAME}'",' >> app/services/default/resources/version.txt
+    echo '  "TAG_NAME": "'${TAG_NAME}'",' >> app/services/default/resources/version.txt
+    echo '  "REVISION_ID": "'${REVISION_ID}'",' >> app/services/default/resources/version.txt
+    echo '  "COMMIT_SHA": "'${COMMIT_SHA}'",' >> app/services/default/resources/version.txt
+    echo '  "SHORT_SHA": "'${SHORT_SHA}'"' >> app/services/default/resources/version.txt
+    echo '}' >> app/services/default/resources/version.txt
+    cat app/services/default/resources/version.txt
+  waitFor: ['slack-notification']
+
+
+# Set execution permissions on `render.py`.
+- name: 'gcr.io/cloud-builders/git'
+  id: perms-on-render
+  entrypoint: /bin/bash
+  args:
+  - '-c'
+  - |
+    chmod +x render.py
+  waitFor: ['create_version_file']    
+
+
+# --- Render GAE YAMLs ---
+- name: 'gcr.io/acuit-dev/docker-compose'
+  id: render-default.yaml.template
+  args: [
+    '--file',
+    'docker-compose.render.yml',
+    'run',
+    'render',
+    'python3',
+    'render.py',
+    'default.yaml.template',
+    'config/${_ENV}.yaml',
+    '-e',
+    'GL_SYNC_APPLICATION_ID=${_GL_SYNC_APPLICATION_ID}',
+    'GOOGLE_CLOUD_LOCATION=${_GOOGLE_CLOUD_LOCATION}'
+  ]
+  waitFor: ['perms-on-render']
+  
+  
+- name: 'gcr.io/acuit-dev/docker-compose'
+  id: render-api.yaml.template
+  args: [
+    '--file',
+    'docker-compose.render.yml',
+    'run',
+    'render',
+    'python3',
+    'render.py',
+    'api.yaml.template',
+    'config/${_ENV}.yaml',
+    '-e',
+    'GL_SYNC_APPLICATION_ID=${_GL_SYNC_APPLICATION_ID}',
+    'GOOGLE_CLOUD_LOCATION=${_GOOGLE_CLOUD_LOCATION}'
+  ]
+  waitFor: ['render-default.yaml.template']
+ 
+ 
+- name: 'gcr.io/acuit-dev/docker-compose'
+  id: render-queue.yaml.template
+  args: [
+    '--file',
+    'docker-compose.render.yml',
+    'run',
+    'render',
+    'python3',
+    'render.py',
+    'queue.yaml.template',
+    'config/${_ENV}.yaml'
+  ]
+  waitFor: ['render-api.yaml.template']
+  
+
+- name: 'gcr.io/acuit-dev/docker-compose'
+  id: run-docker-compose-test
+  args: [
+    '--file',
+    'docker-compose.test.yml',
+    'up',
+    '--build',
+    '--abort-on-container-exit',
+    '--exit-code-from',
+    'api'
+  ]
+  env:
+    - 'PROJECT_ID=new-service'
+    - 'GOOGLE_CLOUD_LOCATION=asia-northeast1'
+  waitFor: ['render-queue.yaml.template']
+
+
+
+- name: gcr.io/cloud-builders/gcloud:latest
+  id: deploy-app-engine-service-default
+  args: [
+    'app',
+    'deploy',
+    'default.yaml',
+    '--project=${PROJECT_ID}',
+    '${_TRAFFIC}'
+  ]
+  waitFor: ['run-docker-compose-test']
+
+
+- name: gcr.io/cloud-builders/gcloud:latest
+  id: deploy-app-engine-service-api
+  args: [
+    'app',
+    'deploy',
+    'api.yaml',
+    '--project=${PROJECT_ID}',
+    '${_TRAFFIC}'
+  ]
+  waitFor: ['deploy-app-engine-service-default']
+
+
+- name: 'gcr.io/cloud-builders/gcloud:latest'
+  id: deploy-app-engine-dispatch
+  args: [
+    'app',
+    'deploy',
+    'dispatch.yaml',
+    '--project=${PROJECT_ID}',
+    '${_TRAFFIC}'
+  ]
+  waitFor: ['deploy-app-engine-service-api']
+
+
+# Purge old versions
+- name: 'gcr.io/cloud-builders/git'
+  id: purge-old-versions
+  entrypoint: /bin/bash
+  args:
+  - '-c'
+  - |
+    bash purge_old_versions.sh ${PROJECT_ID}
+  waitFor: ['deploy-app-engine-dispatch']
+  
+
+# Run the integration tests
+- name: node:$_NODE_VERSION
+  id: run-integration-tests
+  entrypoint: bash
+  args:
+    - "-c"
+    - |
+      if [ "$_ENV" != 'PROD' ]; then
+        echo "======================================="
+        echo "Running Integration Tests in ${_ENV}"
+        mkdir .gcp/integration-test
+        cd .gcp/integration-test
+        git clone https://xxx-api-integration-testing.git
+        cd acuit-api-integration-testing
+        npm install
+        npm install newman
+        export ENVIRONMENT_TO_TEST=$_ENV
+        export TEST_TO_RUN="$_INTEGRATION_TESTS"
+        npm test
+      fi
+  waitFor: ['purge-old-versions']
+
+  
+options:
+  machineType: N1_HIGHCPU_8
+    
+
+# timeout: 3600s  Only if needed.  Default is 10mins
+timeout: 3600s
+tags: ['new-service-template']

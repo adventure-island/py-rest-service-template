@@ -1,0 +1,65 @@
+version: '3.9'
+x-environment-shared: &environment-shared
+  APPLICATION_ID: $PROJECT_ID
+
+  # Setting Postgres variables as per
+  # https://hub.docker.com/_/postgres?tab=description
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "postgres"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: "postgres"
+
+
+  LOCAL_MODE: 1
+
+services:
+
+  postgres:
+    image: postgres
+    environment: *environment-shared
+    expose:
+    - 5432
+
+
+  default:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile.dev
+    image: app-new-service-default
+    command: bash /app/gunicorn_command.sh
+    expose:
+      - 8080
+    ports:
+      - 8087:8080
+    environment:
+      <<: *environment-shared
+      SERVICE_NAME: default
+      GAE_SERVICE: default
+    volumes:
+      - '.:/app'
+    depends_on:
+      - postgres
+    stdin_open: true
+    tty: true
+
+  api:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile.test.nopoetry
+    image: app-new-service-api
+    command: bash /app/test_command.sh
+    # command: bash /app/gunicorn_command.sh
+    # command: tail -f /dev/null
+    expose:
+      - 8080
+    ports:
+      - 8088:8080
+    environment:
+      <<: *environment-shared
+      SERVICE_NAME: api
+      GAE_SERVICE: api
+    volumes:
+      - '.:/app'
+    depends_on:
+      - default

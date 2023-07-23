@@ -1,0 +1,36 @@
+FROM python:3.9 as build
+
+# Update `apt`.
+RUN apt update -y
+# Install system-level `apt` dependencies
+RUN apt install zip -y
+
+# Retrieve the `wait-for-it.sh` script from
+# https://github.com/vishnubob/wait-for-it which is used in Docker Compose so
+# that execution can wait until the emulators are ready.
+ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh wait-for-it.sh
+RUN chmod +x wait-for-it.sh
+RUN mv wait-for-it.sh /usr/local/bin/wait-for-it
+
+# Create a virtualenv for dependencies. This isolates these packages from
+# system-level packages.
+# Use -p python3 or -p python3.7 to select python version. Default is version 2.
+# RUN virtualenv /env -p python3
+ENV VIRTUAL_ENV /env
+RUN python3 -m venv $VIRTUAL_ENV
+
+# Setting these environment variables are the same as running
+# source /env/bin/activate.
+
+ENV PATH $VIRTUAL_ENV/bin:$PATH
+
+ADD gunicorn_command.sh /app/gunicorn_command.sh
+RUN chmod +x /app/gunicorn_command.sh
+
+# Copy the application's requirements.txt and run pip to install all
+# dependencies into the virtualenv.
+FROM build
+ADD requirements-dev.txt /app/requirements-dev.txt
+RUN pip3 install -r /app/requirements-dev.txt
+
+WORKDIR /app

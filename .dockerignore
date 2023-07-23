@@ -1,0 +1,6 @@
+lib
+migrations
+docs
+xunit-reports
+.venv
+venv

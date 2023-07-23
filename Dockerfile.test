@@ -1,0 +1,53 @@
+FROM python:3.9 as python-base
+
+ENV POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_NO_INTERACTION=1 \
+    PYSETUP_PATH="/new-service" \
+    VENV_PATH="/new-service/.venv"
+
+ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
+
+##########################
+# builder-base is used to build dependencies
+FROM python-base as builder-base
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        curl \
+        build-essential
+ 
+# Install Poetry - respects $POETRY_VERSION & $POETRY_HOME
+ENV POETRY_VERSION=1.2.0
+# RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+RUN curl -sSL https://install.python-poetry.org | python3 -
+# RUN source ${HOME}/.profile
+# We copy our Python requirements here to cache them
+# and install only runtime deps using poetry
+WORKDIR $PYSETUP_PATH
+COPY ./poetry.lock ./pyproject.toml ./
+RUN poetry install --no-dev
+
+
+##########################
+# 'development' stage installs all dev deps
+# optionally `--build-arg` can be passed to perform a bash script
+FROM python-base as development
+ARG stage=docker
+# Copying poetry and venv into image
+COPY --from=builder-base $POETRY_HOME $POETRY_HOME
+COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
+
+# Retrieve the `wait-for-it.sh` script from
+# https://github.com/vishnubob/wait-for-it which is used in Docker Compose so
+# that execution can wait until the emulators are ready.
+ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh wait-for-it.sh
+RUN chmod +x wait-for-it.sh
+RUN mv wait-for-it.sh /usr/local/bin/wait-for-it
+
+# venv already has runtime deps installed we get a quicker install
+WORKDIR $PYSETUP_PATH
+RUN poetry install
+
+
+# Copy all files and directories, see `.dockerignore` for files what will be ignored
+COPY . .

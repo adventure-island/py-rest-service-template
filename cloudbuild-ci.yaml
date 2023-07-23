@@ -1,0 +1,36 @@
+steps:
+
+# Send a Slack notification.
+- name: 'gcr.io/acuit-dev/slackbot'
+  id: slack-notification
+  args: [
+    '--build',
+    '$BUILD_ID',
+    '--webhook',
+    '$_SLACK_WEBHOOK'
+  ]
+
+
+- name: 'gcr.io/acuit-dev/docker-compose'
+  id: run-docker-compose-test
+  args: [
+    '--file',
+    'docker-compose.test.yml',
+    'up',
+    '--build',
+    '--abort-on-container-exit',
+    '--exit-code-from',
+    'api'
+  ]
+  env:
+    - 'PROJECT_ID=new-service'
+    - 'GOOGLE_CLOUD_LOCATION=asia-northeast1'
+  waitFor: ['render-queue.yaml.template']
+
+options:
+  machineType: N1_HIGHCPU_8
+
+
+# timeout: 3600s  Only if needed.  Default is 10mins
+timeout: 3600s
+tags: ['acuit-new-service']

@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "py-rest-service-template"
+version = "0.1.0"
+description = "New service template"
+authors = ["Super Man<superhero@abc.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+httplib2 = "^0.19.1"
+grpcio = "^1.37.0"
+ujson = "^4.0.2"
+gunicorn = "^20.1.0"
+logging-formatter-anticrlf = "^1.2"
+fastapi = "^0.68.0"
+starlette-json = "^20.9.18"
+uvicorn = "^0.14.0"
+sqlalchemy = "^1.4.22"
+psycopg2-binary = "^2.9.1"
+sqlalchemy-utils = "^0.37.8"
+pydantic = {extras = ["email"], version = "^1.8.2"}
+[tool.poetry.dev-dependencies]
+mock = "^4.0.3"
+coverage = "^5.5"
+pytest-mock = "^3.6.1"
+pytest-asyncio = "^0.15.1"
+pytest = "^6.2.4"
+pytest-cov = "^2.12.1"
+mypy = "^0.910"
+requests = "^2.31.0"
+black = "^23.3.0"
+bandit = "^1.7.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+

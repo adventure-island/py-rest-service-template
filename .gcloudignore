@@ -1,0 +1,6 @@
+.gcloudignore
+.git
+.gitignore
+Pipfile
+Pipfile.lock
+/.gcp

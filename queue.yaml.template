@@ -1,0 +1,12 @@
+queue:
+- name: q1
+  rate: {{ QUEUE_RATE_STORER }}
+  max_concurrent_requests: {{ QUEUE_MAX_CONCURRENT_REQUESTS_STORER }}
+  # See https://cloud.google.com/appengine/docs/standard/python/config/queueref#retry_parameters
+  retry_parameters:
+    min_backoff_seconds: 1
+- name: q2
+  rate: {{ QUEUE_RATE_DERIVER }}
+  max_concurrent_requests: {{ QUEUE_MAX_CONCURRENT_REQUESTS_DERIVER }}
+  retry_parameters:
+    min_backoff_seconds: 1

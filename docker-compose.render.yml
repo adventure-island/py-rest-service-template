@@ -1,0 +1,10 @@
+version: '3.9'
+
+services:
+  render:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile.render.dev
+    working_dir: /py-rest-service-template
+    volumes:
+      - .:/py-rest-service-template

@@ -12,7 +12,7 @@ Currently, following facilities and sample usages are provided off-the-shelf:
 * Fastapi application and middleware setup  
 * Two sample micro services with following features
   * FastApi applications with middleware injection including
-      * Dababase session management
+      * Database session management
       * Exception handler
   * Example JSONAPI schema defination using Pydantic
   * Example ORM definition and DAL(i.e., Data Access Layer) implementaion    
